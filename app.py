@@ -44,7 +44,7 @@ def create_subtasks(task_id):
         ensure_tag(space_id, tag_name)
         
         requests.post(
-            f{API}/list/{task['list']['id']}/task",
+            f"{API}/list/{task['list']['id']}/task",
             headers=HEADERS,
             json={
                 "name": f"{task["name"]} - {suffix}", 
