@@ -41,19 +41,21 @@ def get_task(task_id, with_subtasks=False):
 
 
 def process(task_id):
+    print("process start:", task_id)
     task = get_task(task_id)
 
-    # Ignore subtasks (prevents loops) and tasks outside your chosen list
     if task.get("parent"):
+        print("skipped: this is a subtask")
         return
     if task["list"]["id"] != LIST_ID:
+        print("skipped: list", task["list"]["id"], "does not match LIST_ID", LIST_ID)
         return
 
-    # Wait for the template's subtasks to appear
     subtasks = []
-    for _ in range(MAX_TRIES):
+    for attempt in range(MAX_TRIES):
         time.sleep(WAIT_SECONDS)
         subtasks = get_task(task_id, with_subtasks=True).get("subtasks", [])
+        print("attempt", attempt + 1, "found", len(subtasks), "subtasks")
         if subtasks:
             break
     if not subtasks:
@@ -87,6 +89,8 @@ def process(task_id):
             f"{API}/task/{sub['id']}/tag/{quote(tag_name)}",
             headers=HEADERS,
         ).raise_for_status()
+
+        
 
 
 @app.post("/clickup")
