@@ -10,6 +10,7 @@ app = Flask(__name__)
 # Read the private values from Render's env variables
 TOKEN = os.environ["CLICKUP_TOKEN"]
 SHARED_SECRET = os.environ["WEBHOOK_SECRET"]
+LIST_ID = os.eviron["LIST_ID"]
 
 # Data sent with every API call
 HEADERS = {"Authorization": TOKEN, "Content-Type": "application/json"}
@@ -34,6 +35,8 @@ def create_subtasks(task_id):
     # Loop guard
     if task.get("parent"):
         return
+    if task["list"]["id"] != LIST_ID:
+        return
 
     space_id = task["space"]["id"]
 
@@ -44,7 +47,7 @@ def create_subtasks(task_id):
         ensure_tag(space_id, tag_name)
         
         requests.post(
-            f"{API}/list/{task['list']['id']}/task",
+            f"{API}/list/{LIST_ID}/task",
             headers=HEADERS,
             json={
                 "name": f"{task["name"]} - {suffix}", 
@@ -57,9 +60,10 @@ def create_subtasks(task_id):
 @app.post("/clickup")
 def handle():
     # Checks against secret header, gives randos a 401 :3
-    if request.headers.get("X-Webhook-Secret") != SHARED_SECRET:
+    if request.headers.get("key") != SHARED_SECRET:
         abort(401)
 
-    task_id = request.get_json()["payload"]["id"]
-    threading.Thread(target=create_subtasks, args=(task_id,)).start()
+    data = request.get_json()
+    if data.get("event") == "taskCreated":
+        threading.Thread(target=create_subtasks, args=(data["task_id"],)).start()
     return "", 200
