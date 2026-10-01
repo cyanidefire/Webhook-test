@@ -14,7 +14,7 @@ LIST_ID = os.environ["LIST_ID"]
 
 # Data sent with every API call
 HEADERS = {"Authorization": TOKEN, "Content-Type": "application/json"}
-API = "https://api/clickup.com/api/v2"
+API = "https://api.clickup.com/api/v2"
 
 # Subtask headings for tasks
 SUBTASK_SUFFIXES = ["CNC", "Sewing", "Foaming", "Upholstering"]
@@ -59,7 +59,6 @@ def create_subtasks(task_id):
 # Runs when port request recieved
 @app.post("/clickup")
 def handle():
-    print("recieved args:", dict(request.args))
     # Checks against secret header, gives randos a 401 :3
     if request.args.get("key") != SHARED_SECRET:
         abort(401)
