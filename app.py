@@ -61,7 +61,7 @@ def create_subtasks(task_id):
 def handle():
     print("recieved args:", dict(request.args))
     # Checks against secret header, gives randos a 401 :3
-    if request.headers.get("key") != SHARED_SECRET:
+    if request.args.get("key") != SHARED_SECRET:
         abort(401)
 
     data = request.get_json()
