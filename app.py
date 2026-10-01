@@ -1,5 +1,4 @@
 import os
-import time
 import threading
 from urllib.parse import quote
 
@@ -7,6 +6,7 @@ import requests
 from flask import Flask, request, abort
 
 app = Flask(__name__)
+print("VERSION: rename-subtasks v2")
 
 TOKEN = os.environ["CLICKUP_TOKEN"]
 SHARED_SECRET = os.environ["WEBHOOK_SECRET"]
@@ -17,9 +17,10 @@ API = "https://api.clickup.com/api/v2"
 # Subtask headings for tasks
 SUBTASK_SUFFIXES = ["CNC", "Sewing", "Foaming", "Upholstering"]
 
-
-WAIT_SECONDS = 5
-MAX_TRIES = 12  # waits up to about a minute for the template's subtasks
+def get_task(task_id):
+    r = requests.get(f"{API}/task/{task_id}", headers=HEADERS, timeout=20)
+    r.raise_for_status()
+    return r.json()
 
 
 def ensure_tag(space_id, tag_name):
@@ -28,71 +29,45 @@ def ensure_tag(space_id, tag_name):
         f"{API}/space/{space_id}/tag",
         headers=HEADERS,
         json={"tag": {"name": tag_name, "tag_fg": "#ffffff", "tag_bg": "#4169e1"}},
+        timeout=20,
     )
 
 
-def get_task(task_id, with_subtasks=False):
-    url = f"{API}/task/{task_id}"
-    if with_subtasks:
-        url += "?subtasks=true"
-    r = requests.get(url, headers=HEADERS, timeout=20)
-    r.raise_for_status()
-    return r.json()
-
-
 def process(task_id):
-    print("process start:", task_id)
     task = get_task(task_id)
 
-    if task.get("parent"):
-        print("skipped: this is a subtask")
+    parent_id = task.get("parent")
+    if not parent_id:
+        print("parent task, nothing to do:", task_id)
         return
     if task["list"]["id"] != LIST_ID:
-        print("skipped: list", task["list"]["id"], "does not match LIST_ID", LIST_ID)
+        print("skipped: list", task["list"]["id"], "does not match", LIST_ID)
         return
 
-    subtasks = []
-    for attempt in range(MAX_TRIES):
-        time.sleep(WAIT_SECONDS)
-        subtasks = get_task(task_id, with_subtasks=True).get("subtasks", [])
-        print("attempt", attempt + 1, "found", len(subtasks), "subtasks")
-        if subtasks:
-            break
-    if not subtasks:
-        print("No subtasks found for", task_id)
+    parent_name = get_task(parent_id)["name"]
+    original = task["name"].strip()
+
+    # Skip anything already renamed
+    if original.startswith(parent_name + " - "):
         return
 
-    # Let any remaining template subtasks finish being created
-    time.sleep(WAIT_SECONDS)
-    subtasks = get_task(task_id, with_subtasks=True).get("subtasks", [])
+    tag_name = original.lower()
+    ensure_tag(task["space"]["id"], tag_name)
 
-    parent_name = task["name"]
-    space_id = task["space"]["id"]
+    requests.put(
+        f"{API}/task/{task_id}",
+        headers=HEADERS,
+        json={"name": f"{parent_name} - {original}"},
+        timeout=20,
+    ).raise_for_status()
+    print("renamed:", original, "->", f"{parent_name} - {original}")
 
-    for sub in subtasks:
-        original = sub["name"].strip()
-
-        # Skip anything already renamed
-        if original.startswith(parent_name + " - "):
-            continue
-
-        tag_name = original.lower()
-        ensure_tag(space_id, tag_name)
-
-        requests.put(
-            f"{API}/task/{sub['id']}",
-            headers=HEADERS,
-            json={"name": f"{parent_name} - {original}"},
-            timeout=20,
-        ).raise_for_status()
-
-        requests.post(
-            f"{API}/task/{sub['id']}/tag/{quote(tag_name)}",
-            headers=HEADERS,
-            timeout=20,
-        ).raise_for_status()
-
-        
+    requests.post(
+        f"{API}/task/{task_id}/tag/{quote(tag_name)}",
+        headers=HEADERS,
+        timeout=20,
+    ).raise_for_status()
+    print("tagged:", tag_name)
 
 
 @app.post("/clickup")
