@@ -35,7 +35,7 @@ def get_task(task_id, with_subtasks=False):
     url = f"{API}/task/{task_id}"
     if with_subtasks:
         url += "?subtasks=true"
-    r = requests.get(url, headers=HEADERS)
+    r = requests.get(url, headers=HEADERS, timeout=20)
     r.raise_for_status()
     return r.json()
 
@@ -83,11 +83,13 @@ def process(task_id):
             f"{API}/task/{sub['id']}",
             headers=HEADERS,
             json={"name": f"{parent_name} - {original}"},
+            timeout=20,
         ).raise_for_status()
 
         requests.post(
             f"{API}/task/{sub['id']}/tag/{quote(tag_name)}",
             headers=HEADERS,
+            timeout=20,
         ).raise_for_status()
 
         
