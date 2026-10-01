@@ -59,6 +59,7 @@ def create_subtasks(task_id):
 # Runs when port request recieved
 @app.post("/clickup")
 def handle():
+    print("recieved args:", dict(request.args))
     # Checks against secret header, gives randos a 401 :3
     if request.headers.get("key") != SHARED_SECRET:
         abort(401)
