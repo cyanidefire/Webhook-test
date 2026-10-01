@@ -10,7 +10,7 @@ app = Flask(__name__)
 # Read the private values from Render's env variables
 TOKEN = os.environ["CLICKUP_TOKEN"]
 SHARED_SECRET = os.environ["WEBHOOK_SECRET"]
-LIST_ID = os.eviron["LIST_ID"]
+LIST_ID = os.environ["LIST_ID"]
 
 # Data sent with every API call
 HEADERS = {"Authorization": TOKEN, "Content-Type": "application/json"}
